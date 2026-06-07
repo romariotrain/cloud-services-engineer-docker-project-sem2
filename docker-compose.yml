@@ -10,6 +10,15 @@ services:
       - backend-internal
     environment:
       LOG_LEVEL: ${LOG_LEVEL:-info}
+    secrets:
+      - backend_secret
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
       interval: 30s
@@ -18,6 +27,7 @@ services:
       retries: 3
     restart: unless-stopped
     deploy:
+      replicas: ${BACKEND_REPLICAS:-1}
       resources:
         limits:
           cpus: '0.50'
@@ -29,33 +39,6 @@ services:
       - dev
       - prod
 
-  backend-replica:
-    build:
-      context: ./backend
-    image: momo-store-backend:1.0.0
-    networks:
-      - app-net
-      - backend-internal
-    environment:
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
-      interval: 30s
-      timeout: 5s
-      start_period: 10s
-      retries: 3
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.50'
-          memory: 128M
-        reservations:
-          cpus: '0.25'
-          memory: 64M
-    profiles:
-      - prod
-
   frontend:
     build:
       context: ./frontend
@@ -63,7 +46,7 @@ services:
         VUE_APP_API_URL: /api
     image: momo-store-frontend:1.0.0
     ports:
-      - "8080:8080"
+      - "80:8080"
     networks:
       - app-net
     depends_on:
@@ -71,6 +54,14 @@ services:
         condition: service_healthy
     volumes:
       - nginx-logs:/var/log/nginx:rw
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/momo-store/"]
       interval: 30s
@@ -90,6 +81,24 @@ services:
       - dev
       - prod
 
+  trivy-backend:
+    image: aquasec/trivy:latest
+    command: ["image", "--exit-code", "1", "--severity", "HIGH,CRITICAL", "momo-store-backend:1.0.0"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - trivy-cache:/root/.cache/trivy
+    profiles:
+      - scan
+
+  trivy-frontend:
+    image: aquasec/trivy:latest
+    command: ["image", "--exit-code", "1", "--severity", "HIGH,CRITICAL", "momo-store-frontend:1.0.0"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - trivy-cache:/root/.cache/trivy
+    profiles:
+      - scan
+
 networks:
   app-net:
     driver: bridge
@@ -100,3 +109,9 @@ networks:
 volumes:
   nginx-logs:
     driver: local
+  trivy-cache:
+    driver: local
+
+secrets:
+  backend_secret:
+    file: ./secrets/backend_secret.txt
