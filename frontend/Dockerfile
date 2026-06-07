@@ -5,6 +5,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+ARG VUE_APP_API_URL=/api
+ENV VUE_APP_API_URL=$VUE_APP_API_URL
+
 COPY . .
 RUN npm run build
 

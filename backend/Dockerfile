@@ -18,9 +18,9 @@ COPY --from=builder /app/myapp .
 RUN chown appuser:appuser ./myapp
 
 USER appuser
-EXPOSE 8080
+EXPOSE 8081
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD wget -qO- http://localhost:8080/health || exit 1
+    CMD wget -qO- http://localhost:8081/health || exit 1
 
 CMD ["./myapp"]

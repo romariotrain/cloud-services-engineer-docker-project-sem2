@@ -1,0 +1,102 @@
+name: momo-store
+
+services:
+  backend:
+    build:
+      context: ./backend
+    image: momo-store-backend:1.0.0
+    networks:
+      - app-net
+      - backend-internal
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    profiles:
+      - dev
+      - prod
+
+  backend-replica:
+    build:
+      context: ./backend
+    image: momo-store-backend:1.0.0
+    networks:
+      - app-net
+      - backend-internal
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
+    profiles:
+      - prod
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VUE_APP_API_URL: /api
+    image: momo-store-frontend:1.0.0
+    ports:
+      - "8080:8080"
+    networks:
+      - app-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - nginx-logs:/var/log/nginx:rw
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/momo-store/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          cpus: '0.10'
+          memory: 32M
+    profiles:
+      - dev
+      - prod
+
+networks:
+  app-net:
+    driver: bridge
+  backend-internal:
+    driver: bridge
+    internal: true
+
+volumes:
+  nginx-logs:
+    driver: local
