@@ -35,9 +35,6 @@ services:
         reservations:
           cpus: '0.25'
           memory: 64M
-    profiles:
-      - dev
-      - prod
 
   frontend:
     build:
@@ -77,9 +74,6 @@ services:
         reservations:
           cpus: '0.10'
           memory: 32M
-    profiles:
-      - dev
-      - prod
 
   trivy-backend:
     image: aquasec/trivy:latest
